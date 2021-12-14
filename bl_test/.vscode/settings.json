@@ -1,0 +1,17 @@
+{
+    "python.autoComplete.extraPaths": [
+        "E:/Projects/Projects/02_Under_Process/Stealth/blender_autocomplete/2.93"
+    ],
+    "python.linting.pylintArgs": [
+        "--init-hook",
+        "import sys; sys.path.append('E:/Projects/Projects/02_Under_Process/Stealth/blender_autocomplete/2.93')"
+    ],
+    "python.analysis.extraPaths": [
+        "E:/Projects/Projects/02_Under_Process/Stealth/blender_autocomplete/2.93"
+    ],
+    "editor.formatOnSave": false,
+    "python.formatting.autopep8Args": [
+        "--ignore",
+        "E402"
+    ]
+}
