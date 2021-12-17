@@ -1,3 +1,12 @@
+import sys
+sys.path.append(
+    "C:\\Users\\Admin\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
+
+sys.path.append(
+    "C:\\Users\\Admin\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
+
+#C:\Users\Admin\AppData\Local\Programs\Python\Python39\Lib\site-packages
+
 import numpy as np
 import bpy
 import os
@@ -14,7 +23,6 @@ class NumpyArrayEncoder(JSONEncoder):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return JSONEncoder.default(self, obj)
-
 
 class Renderer:
 
@@ -34,10 +42,10 @@ class Renderer:
 
         object = bpy.data.objects['Sphere']
         object.location = (random.random() * -18,
-                           random.random() * 18, random.random() * 4 + 1)
+                           random.random() * 18, random.random() *  4 + 1)
         object["inst_id"] = 2000
 
-        r = random.uniform(0, 90)
+        r = random.uniform(0,90)
         object.rotation_euler = (r, r, r)
 
         object = bpy.data.objects['Cube']
@@ -82,8 +90,7 @@ class Renderer:
         pointsList = []
 
         for cnt in contours:
-            approx = ocv.approxPolyDP(
-                cnt, 0.009 * ocv.arcLength(cnt, True), True)
+            approx = ocv.approxPolyDP(cnt, 0.009 * ocv.arcLength(cnt, True), True)
 
             n = approx.ravel()
             i = 0
@@ -101,7 +108,7 @@ class Renderer:
 
         npData = {"array": np.array(pointsList)}
         encodedNPData = json.dumps(npData, cls=NumpyArrayEncoder)
-
+        
         file = 'contour%d.json'
         path = os.path.join(os.getcwd(), (file % self.count))
         with open(path, "w") as outfile:
@@ -112,7 +119,7 @@ class Renderer:
 r = Renderer()
 r.init()
 
-for i in range(10):
+for i in range (1):
     r.change()
     r.render()
-    print("Render Finished:", i)
+    print("Finished")
