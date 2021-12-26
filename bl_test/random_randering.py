@@ -1,19 +1,13 @@
 import sys
 sys.path.append(
-    "C:\\Users\\Admin\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
+    "C:\\Users\\Narinder\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
 
 sys.path.append(
-    "C:\\Users\\Admin\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
+    "C:\\Users\\Narinder\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
 
-import numpy as np
 import bpy
 import os
-
-import cv2 as ocv
 import random
-
-import json
-from json import JSONEncoder
 
 class Renderer:
     def init(self):
@@ -47,10 +41,4 @@ r = Renderer()
 r.init()
 r.renderNormal()
 r.renderSemantic()
-
 print("Finished")
-
-# for i in range (1):
-#     r.change()
-#     r.render()
-#     print("Finished")
