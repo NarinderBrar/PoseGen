@@ -1,9 +1,9 @@
 import sys
 sys.path.append(
-    "C:\\Users\\Narinder\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
+    "C:\\Users\\Admin\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
 
 sys.path.append(
-    "C:\\Users\\Narinder\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
+    "C:\\Users\\Admin\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
 
 
 import alphashape

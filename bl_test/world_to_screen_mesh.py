@@ -32,6 +32,5 @@ def tocam(scene, obs):
         if cam.data.type == 'ORTHO':
             ob.scale *= cam.data.ortho_scale
 
-
 bpy.ops.object.duplicate()
 tocam(context.scene, context.selected_objects)

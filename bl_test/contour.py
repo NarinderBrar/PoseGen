@@ -1,26 +1,102 @@
 import bpy
-from bpy.props import StringProperty
-
-from typing import List, Union, Tuple
-import sys
-
 import bpy
 import bmesh
+from bpy.props import StringProperty
+from typing import List, Union, Tuple
+from concurrent.futures import ThreadPoolExecutor
+
+from mathutils import Vector, Matrix
+import numpy as np
+
+from itertools import repeat, chain
+
+from shapely.ops import unary_union
+from shapely.geometry import Point, Polygon, MultiPolygon
+
+from typing import List, Tuple
+from mathutils import Matrix, Vector
+
 from bpy_extras.view3d_utils import (
     location_3d_to_region_2d,
     region_2d_to_location_3d,
     region_2d_to_origin_3d,
     region_2d_to_vector_3d,
 )
-from mathutils import Vector, Matrix
-import numpy as np
 
-from shapely.geometry import Polygon
+def poly_union(polygons: List[Polygon], buffer: float) -> List[Polygon]:
+    """ Perform union on list of polygons with buffer for cleaning incorrect alignments """
+    # Buffer to increase overlay
+    polygons = [poly.buffer(buffer) for poly in polygons]
 
+    # Perform merge
+    merged = unary_union(polygons)
 
-def add_evaled_mesh(
-    bm, dg: bpy.types.Depsgraph, obj: bpy.types.Object, to_world: bool = True
-):
+    # Account for multipolygon output
+    if isinstance(merged, MultiPolygon):
+        polygons = [g for g in merged.geoms]
+    else:
+        polygons = [merged]
+
+    # Remove buffer
+    polygons = [poly.buffer(-buffer) for poly in polygons]
+
+    return polygons
+
+def faces_to_polygons(face_set: List[List[Vector]]):
+    """ Convert list of face points to shapely polyon """
+    polygons = []
+    for face in face_set:
+
+        pts = []
+        for point in face:
+            # TODO: Hacky fix, find actual source of problem
+            # point.y *= -1
+            pts.append(point.to_tuple())
+        # pts.append(face[-1])
+
+        polygon = Polygon(pts)
+        polygons.append(polygon)
+
+    return polygons
+
+def avg_vectors(vectors: List[Vector]):
+    nvectors = len(vectors)
+    total = None
+    for v in vectors:
+        if total is None:
+            total = v.copy()
+            continue
+        total += v
+
+    return total / nvectors
+
+def view3d_find():
+    # returns first 3d view, normally we get from context
+    for area in bpy.context.window.screen.areas:
+        if area.type == 'VIEW_3D':
+            v3d = area.spaces[0]
+            rv3d = v3d.region_3d
+            for region in area.regions:
+                if region.type == 'WINDOW':
+                    return region, rv3d
+    return None, None
+
+def view3d_camera_border(scene):
+    obj = scene.camera
+    cam = obj.data
+
+    frame = cam.view_frame(scene=scene)
+
+    # move from object-space into world-space 
+    frame = [obj.matrix_world @ v for v in frame]
+
+    # move into pixelspace
+    from bpy_extras.view3d_utils import location_3d_to_region_2d
+    region, rv3d = view3d_find()
+    frame_px = [location_3d_to_region_2d(region, rv3d, v) for v in frame]
+    return frame_px
+
+def add_evaled_mesh(bm, dg: bpy.types.Depsgraph, obj: bpy.types.Object, to_world: bool = True):
     object_eval = obj.evaluated_get(dg)
     mesh_from_eval = object_eval.to_mesh()
     if to_world:
@@ -62,108 +138,119 @@ def get_flattened_faces(context, targets: Union[List[bpy.types.Object], bpy.type
 
     return faces
 
-def execute(context: bpy.types.Context): 
-    valid_target_types = [
-        "MESH",
-        "SURFACE",
-        "CURVE",
-        "META",
-        "FONT",
-    ]
+def get_camera_frame(context, transform: Matrix, flatten: bool) -> Polygon:
+    # Apply camera crop
+    camera = context.scene.camera
+    cam_frame_local = camera.data.view_frame()
 
+    # Apply frame aspect ration
+    width = context.scene.render.resolution_x
+    height = context.scene.render.resolution_y
+
+    if width > height:
+        aspect_correction = Vector((1.0, height / width, 1.0))
+    else:
+        aspect_correction = Vector((width / height, 1.0, 1.0))
+
+    for v in cam_frame_local:
+        v *= aspect_correction
+
+    cam_frame_world = [camera.matrix_world @ v for v in cam_frame_local]
+    cam_frame_world = [transform @ v for v in cam_frame_world]
+
+    if flatten:
+        cam_frame_world = [pt.to_2d() for pt in cam_frame_world]
+
+    return cam_frame_world
+
+def translate_face_set(face_set: List[List[Vector]], xy):
+    translated = []
+    for face in face_set:
+        translated.append([v + xy for v in face])
+
+    return translated
+
+def execute(context: bpy.types.Context): 
+    valid_target_types = ["MESH","SURFACE","CURVE","META","FONT"]
     targets = [o for o in context.selected_objects if o.type in valid_target_types]
 
     if not targets:
         print("No valid targets selected")
-        return {"CANCELLED"}
+        return
 
     area = context.area
     rv3d = area.spaces[0].region_3d
     view_rotation = rv3d.view_rotation
-
     invert_view_rot = view_rotation.to_matrix().to_4x4().inverted()
 
     face_sets = [get_flattened_faces(context, obj, invert_view_rot) for obj in targets]
 
-    # # Set origin
-    # # find min-x min-y
-    # origin_offset = None
-    # if self.is_camera_projector(context):
-    #     view_frame = get_geo.get_camera_frame(
-    #         context, invert_view_rot, flatten=True
-    #     )
-    #     for v in view_frame:
-    #         v.y *= -1  # Note: Ugh
-    #         if origin_offset is None:
-    #             origin_offset = v.copy()
-    #             continue
-    #         origin_offset.x = min(origin_offset.x, v.x)
-    #         origin_offset.y = min(origin_offset.y, v.y)
+    # Set origin
+    # find min-x min-y
+    origin_offset = None
+    view_frame = get_camera_frame(context, invert_view_rot, flatten=True)
+    for v in view_frame:
+        v.y *= -1
+        if origin_offset is None:
+            origin_offset = v.copy()
+            continue
+        origin_offset.x = min(origin_offset.x, v.x)
+        origin_offset.y = min(origin_offset.y, v.y)
+    
+    #print(origin_offset)
+    
+    loc_correction = origin_offset * -1
+    view_frame = [loc_correction + v for v in view_frame]
+    
+    frame_px = view3d_camera_border(bpy.context.scene)
+    frame_origin = avg_vectors(view_frame)
 
-    # else:
-    #     for face_set in face_sets:
-    #         for face in face_set:
-    #             for v in face:
-    #                 if origin_offset is None:
-    #                     origin_offset = v.copy()
-    #                     continue
-    #                 origin_offset.x = min(origin_offset.x, v.x)
-    #                 origin_offset.y = min(origin_offset.y, v.y)
+    poly_sets = [faces_to_polygons(face_set) for face_set in face_sets]
 
-    # loc_correction = origin_offset * -1
-    # # print("\n\nloc correct\t", loc_correction)
+    vv=[] 
+    for p in poly_sets:
+        for k in p:
+            lsting = list(k.exterior.coords)
+            for mo in lsting:
+                print(mo) 
+                vv.append(mo)
 
-    # # Cancel offset
-    # if self.is_camera_projector(context):
-    #     view_frame = [loc_correction + v for v in view_frame]
-
-    # # Make position and origin relative
-    # face_sets = [
-    #     process_geo.translate_face_set(face_set, loc_correction)
-    #     for face_set in face_sets
-    # ]
-
-    # if self.is_camera_projector(context):
-    #     frame_origin = get_geo.avg_vectors(view_frame)
-    # else:
-    #     frame_origin = get_geo.get_face_sets_origin(face_sets)
-
-    # # Convert targets to shapely polygons
-    # poly_sets = [get_geo.faces_to_polygons(
-    #     face_set) for face_set in face_sets]
-
-    # # Perform union operation
+    # Perform union operation
     # with ThreadPoolExecutor() as executor:
     #     # buffer = 0.001
     #     buffer = 0.00001
-    #     merged_sets = executor.map(
-    #         process_geo.poly_union, poly_sets, repeat(buffer)
-    #     )
+    #     merged_sets = executor.map(poly_union, poly_sets, repeat(buffer))
 
-    # # Flatten merged face sets
-    # merged = list(chain.from_iterable(merged_sets))
+    # Flatten merged face sets
+    #merged = list(chain.from_iterable(merged_sets))
 
-    # if not self.is_camera_projector(context):
-    #     svg_bounds = process_geo.get_bbox(merged)
-    #     # print('svg bounds:\t', svg_bounds)
-    # else:
-    #     # Get camera frame
-    #     # print('cam bound:\t', view_frame)
-    #     cam_projection_bounds = [view_frame[2], view_frame[0]]
+    #svg_bounds = process_geo.get_bbox(merged)
+    #units = self.get_units_string(context)
 
-    #     svg_bounds = (
-    #         cam_projection_bounds[0].to_tuple()
-    #         + cam_projection_bounds[1].to_tuple()
-    #     )
+    # Make position and origin relative
+    face_sets = [translate_face_set(face_set, loc_correction) for face_set in face_sets]
+    face_set = face_sets[0]
+    face = face_set[0]
 
-    # units = self.get_units_string(context)
+    bpy.data.objects["m0"].location = (vv[0][0], vv[0][1],0)
+    bpy.data.objects["m1"].location = (vv[1][0], vv[1][1],0)
+    bpy.data.objects["m2"].location = (vv[2][0], vv[2][1],0)
+    bpy.data.objects["m3"].location = (vv[3][0], vv[3][1],0)
+
+    bpy.data.objects["c0"].location = (frame_px[0][0], frame_px[0][1],0)
+    bpy.data.objects["c1"].location = (frame_px[1][0], frame_px[1][1],0)
+    bpy.data.objects["c2"].location = (frame_px[2][0], frame_px[2][1],0)
+    bpy.data.objects["c3"].location = (frame_px[3][0], frame_px[3][1],0)
 
     # write_geo.write_poly_to_svg(
     #     self.filepath, merged, svg_bounds[:2], svg_bounds[2:], units
     # )
-    # return {"FINISHED"}
+
+    #return {"FINISHED"}
 
 
 context = bpy.context
 scene = context.scene
+
+
 execute(context)
