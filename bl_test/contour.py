@@ -197,8 +197,6 @@ def execute(context: bpy.types.Context):
         origin_offset.x = min(origin_offset.x, v.x)
         origin_offset.y = min(origin_offset.y, v.y)
     
-    #print(origin_offset)
-    
     loc_correction = origin_offset * -1
     view_frame = [loc_correction + v for v in view_frame]
     
@@ -207,50 +205,43 @@ def execute(context: bpy.types.Context):
 
     poly_sets = [faces_to_polygons(face_set) for face_set in face_sets]
 
-    vv=[] 
-    for p in poly_sets:
-        for k in p:
-            lsting = list(k.exterior.coords)
-            for mo in lsting:
-                print(mo) 
-                vv.append(mo)
-
     # Perform union operation
-    # with ThreadPoolExecutor() as executor:
-    #     # buffer = 0.001
-    #     buffer = 0.00001
-    #     merged_sets = executor.map(poly_union, poly_sets, repeat(buffer))
+    with ThreadPoolExecutor() as executor:
+        # buffer = 0.001
+        buffer = 0.00001
+        merged_sets = executor.map(poly_union, poly_sets, repeat(buffer))
 
-    # Flatten merged face sets
-    #merged = list(chain.from_iterable(merged_sets))
+    #Flatten merged face sets
+    merged = list(chain.from_iterable(merged_sets))
+    print(merged)
 
     #svg_bounds = process_geo.get_bbox(merged)
     #units = self.get_units_string(context)
 
     # Make position and origin relative
-    face_sets = [translate_face_set(face_set, loc_correction) for face_set in face_sets]
-    face_set = face_sets[0]
-    face = face_set[0]
+    # face_sets = [translate_face_set(face_set, loc_correction) for face_set in face_sets]
+    # face_set = face_sets[0]
+    # face = face_set[0]
 
-    bpy.data.objects["m0"].location = (vv[0][0], vv[0][1],0)
-    bpy.data.objects["m1"].location = (vv[1][0], vv[1][1],0)
-    bpy.data.objects["m2"].location = (vv[2][0], vv[2][1],0)
-    bpy.data.objects["m3"].location = (vv[3][0], vv[3][1],0)
+    vertices = []
+    for p in merged:
+        for k in p:
+            lsting = list(k.exterior.coords)
+            for mo in lsting:
+                vertices.append((mo[0], mo[1], 0))
 
-    bpy.data.objects["c0"].location = (frame_px[0][0], frame_px[0][1],0)
-    bpy.data.objects["c1"].location = (frame_px[1][0], frame_px[1][1],0)
-    bpy.data.objects["c2"].location = (frame_px[2][0], frame_px[2][1],0)
-    bpy.data.objects["c3"].location = (frame_px[3][0], frame_px[3][1],0)
-
-    # write_geo.write_poly_to_svg(
-    #     self.filepath, merged, svg_bounds[:2], svg_bounds[2:], units
-    # )
-
-    #return {"FINISHED"}
-
+    edges = []
+    faces = []
+    new_mesh = bpy.data.meshes.new('new_mesh')
+    new_mesh.from_pydata(vertices, edges, faces)
+    new_mesh.update()
+    new_object = bpy.data.objects.new('new_object', new_mesh)
+    new_collection = bpy.data.collections.new('new_collection')
+    bpy.context.scene.collection.children.link(new_collection)
+    new_collection.objects.link(new_object)
 
 context = bpy.context
 scene = context.scene
 
-
 execute(context)
+print("Finished")
