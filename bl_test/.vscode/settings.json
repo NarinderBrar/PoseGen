@@ -1,13 +1,13 @@
 {
     "python.autoComplete.extraPaths": [
-        "C:/blender_autocomplete/2.93"
+        " ./../2.93"
     ],
     "python.linting.pylintArgs": [
         "--init-hook",
-        "import sys; sys.path.append('C:/blender_autocomplete/2.93')"
+        "import sys; sys.path.append('./../2.93')"
     ],
     "python.analysis.extraPaths": [
-        "C:/blender_autocomplete/2.93"
+        "./../2.93"
     ],
     "editor.formatOnSave": false,
     "python.formatting.autopep8Args": [
