@@ -125,6 +125,7 @@ def get_flattened_faces(context, targets: Union[List[bpy.types.Object], bpy.type
 
     for face in bm.faces:
         face_points = [transform @ vert.co for vert in face.verts]
+        #face_points = [vert.co for vert in face.verts]
         # flip = Vector((1, -1))
         face_points = [point.to_2d() for point in face_points]
         # print(face_points)
@@ -185,35 +186,30 @@ def execute(context: bpy.types.Context):
 
     face_sets = [get_flattened_faces(context, obj, invert_view_rot) for obj in targets]
 
-    # Set origin
-    # find min-x min-y
-    origin_offset = None
-    view_frame = get_camera_frame(context, invert_view_rot, flatten=True)
-    for v in view_frame:
-        v.y *= -1
-        if origin_offset is None:
-            origin_offset = v.copy()
-            continue
-        origin_offset.x = min(origin_offset.x, v.x)
-        origin_offset.y = min(origin_offset.y, v.y)
+    # origin_offset = None
+    # view_frame = get_camera_frame(context, invert_view_rot, flatten=True)
+    # for v in view_frame:
+    #     v.y *= -1
+    #     if origin_offset is None:
+    #         origin_offset = v.copy()
+    #         continue
+    #     origin_offset.x = min(origin_offset.x, v.x)
+    #     origin_offset.y = min(origin_offset.y, v.y)
     
-    loc_correction = origin_offset * -1
-    view_frame = [loc_correction + v for v in view_frame]
+    # loc_correction = origin_offset * -1
+    # view_frame = [loc_correction + v for v in view_frame]
     
-    frame_px = view3d_camera_border(bpy.context.scene)
-    frame_origin = avg_vectors(view_frame)
+    # frame_px = view3d_camera_border(bpy.context.scene)
+    # frame_origin = avg_vectors(view_frame)
 
     poly_sets = [faces_to_polygons(face_set) for face_set in face_sets]
 
-    # Perform union operation
     with ThreadPoolExecutor() as executor:
-        # buffer = 0.001
         buffer = 0.00001
         merged_sets = executor.map(poly_union, poly_sets, repeat(buffer))
 
-    #Flatten merged face sets
     merged = list(chain.from_iterable(merged_sets))
-    print(merged)
+    #print(merged)
 
     #svg_bounds = process_geo.get_bbox(merged)
     #units = self.get_units_string(context)
@@ -225,10 +221,11 @@ def execute(context: bpy.types.Context):
 
     vertices = []
     for p in merged:
-        for k in p:
-            lsting = list(k.exterior.coords)
-            for mo in lsting:
-                vertices.append((mo[0], mo[1], 0))
+        print(p.exterior.coords)
+        #for k in p:
+        coords = list(p.exterior.coords)
+        for mo in coords:
+            vertices.append((mo[0], mo[1], 0))
 
     edges = []
     faces = []
