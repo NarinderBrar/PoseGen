@@ -158,15 +158,11 @@ def execute(context: bpy.types.Context):
         return
 
     bpy.ops.object.duplicate()
-
-    collision_object = bpy.context.scene.objects.active
-    for cl_o in collision_object:
-        new_collection2.objects.link(cl_o)
+    print(bpy.context.active_object)
 
     tocam(context.scene, context.selected_objects)
 
     for obj in targets:
-        print (obj)
         face_sets = [get_flattened_faces(context, obj)]
         poly_sets = [faces_to_polygons(face_set) for face_set in face_sets]
 
