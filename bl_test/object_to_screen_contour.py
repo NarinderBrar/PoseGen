@@ -108,7 +108,8 @@ def drawMesh(face_sets) :
     x = (0.5 / tan(angle_x / 2)) * cam_vec.normalized()
     obj.matrix_world.translation = cam.matrix_world.translation + x
 
-    new_collection.objects.link(obj)
+    bpy.context.collection.objects.link(obj)
+
 
 def drawPoly(merged) :
     cam = context.scene.camera
@@ -120,9 +121,15 @@ def drawPoly(merged) :
 
     vertices = []
     for p in merged:
-        coords = list(p.exterior.coords)
-        for mo in coords:
-            vertices.append((mo[0], mo[1], 0))
+        if isinstance(p, MultiPolygon):
+            for mulp in p.geoms:
+                coords = list(mulp.exterior.coords)
+                for mo in coords:
+                    vertices.append((mo[0], mo[1], 0))
+        else:
+            coords = list(p.exterior.coords)
+            for mo in coords:
+                vertices.append((mo[0], mo[1], 0))
 
     edges = []
     faces = []
@@ -137,7 +144,7 @@ def drawPoly(merged) :
     x = (0.5 / tan(angle_x / 2)) * cam_vec.normalized()
     obj.matrix_world.translation = cam.matrix_world.translation + x
 
-    new_collection.objects.link(obj)
+    bpy.context.collection.objects.link(obj)
 
     return obj
 
@@ -163,7 +170,7 @@ def duplicate(obj, data=True, actions=True, collection=None):
         obj_copy.data = obj_copy.data.copy()
     if actions and obj_copy.animation_data:
         obj_copy.animation_data.action = obj_copy.animation_data.action.copy()
-    collection.objects.link(obj_copy)
+    bpy.context.collection.objects.link(obj_copy)
     return obj_copy
 
 def renderImage(file):
@@ -176,6 +183,34 @@ def renderImage(file):
     print("Rendering image:", file)
     print("Render Engine:", render.engine)
     bpy.ops.render.render(write_still=True)
+
+def drawContour(obj, file):
+    path = os.path.join(os.getcwd(), (file % count))
+    image = cv2.imread(path)
+
+    cam = context.scene.camera
+
+    i =0
+    Dict = {}
+    for v in obj.data.vertices:
+        x = g = float("{:.2f}".format(v.co.x))
+        y = g = float("{:.2f}".format(v.co.y))
+        if x in Dict.keys():
+            if Dict[x]  == y:
+                continue 
+        co_2d = w2cv(scene, cam, obj.matrix_world @ v.co)
+        render_scale = scene.render.resolution_percentage / 100
+        render_size = (int(scene.render.resolution_x * render_scale),int(scene.render.resolution_y * render_scale),)
+        center_coordinates = (int(co_2d.x * render_size[0]), int(render_size[1] - co_2d.y * render_size[1]))
+        image = cv2.circle(image, center_coordinates, 1, (255, 0, 0), 2)
+        image = cv2.putText(image, str(i), center_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+        Dict[x] = y
+        i=i+1
+
+    file = 'renderContour%d.png'
+    path = os.path.join(os.getcwd(), (file % count))
+    cv2.imshow('Image', image)
+    cv2.imwrite(path, image)
 
 def run(): 
     file = 'realistic%d.png'
@@ -193,7 +228,7 @@ def run():
 
     obj = targets[0]
     obj.select_set(False)
-    obj_copy = duplicate(obj=obj, data=True, actions=True, collection=new_collection)
+    obj_copy = duplicate(obj=obj, data=True, actions=True)
     obj_copy.select_set(True)
 
     project_mesh_on_camera(obj_copy)
@@ -212,13 +247,15 @@ def run():
 
     obj_outline = drawPoly(merged)
 
+    drawContour(obj_outline, file)
+    objs.remove(obj_outline, do_unlink=True)
+
+    obj.select_set(True)
+
 context = bpy.context
 scene = context.scene
 
-count = 0
-
-new_collection = bpy.data.collections.new('temp_Collection')
-bpy.context.scene.collection.children.link(new_collection)
+count = 3
 
 run()
 print("Finished")
