@@ -1,4 +1,14 @@
+import sys
+
+sys.path.append(
+    "C:\\Users\\Narinder\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
+
+sys.path.append(
+    "C:\\Users\\Narinder\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
+
 import bpy
+import os
+import cv2
 import bmesh
 from typing import List, Union, Tuple
 
@@ -46,31 +56,31 @@ def add_evaled_mesh(bm, dg: bpy.types.Depsgraph, obj: bpy.types.Object, to_world
     object_eval.to_mesh_clear()
     return None
 
-def tocam(scene, obs):
+def project_mesh_on_camera(obj):
     cam = scene.camera
     cam_vec = cam.matrix_world.to_3x3() @ Vector((0, 0, -1))
+
     R = cam_vec.to_track_quat('-Z', 'Y').to_matrix().to_4x4()
 
-    s = Vector((1, (scene.render.resolution_y / scene.render.resolution_x), 1, 1))
-    S = Matrix.Diagonal(s)
+    S = Matrix.Diagonal(
+        Vector((1, (scene.render.resolution_y / scene.render.resolution_x), 1, 1)))
 
     T = Matrix.Translation((-0.5, -0.5, 0))
 
-    for ob in obs:
-        ob.data.transform(ob.matrix_world)
-        ob.matrix_world = Matrix()
-        for v in ob.data.vertices:
-            vec = w2cv(scene, cam, v.co)
-            v.co = vec.x, vec.y, 0
+    obj.data.transform(obj.matrix_world)
+    obj.matrix_world = Matrix()
+    for v in obj.data.vertices:
+        vec = w2cv(scene, cam, v.co)
+        v.co = vec.x, vec.y, 0
 
-        ob.data.transform(S @ T)
+    obj.data.transform(S @ T)
+    obj.matrix_world = R
 
-        ob.matrix_world = R
-        angle_x = cam.data.angle_x
-        x = (0.5 / tan(angle_x / 2)) * cam_vec.normalized()
-        ob.matrix_world.translation = cam.matrix_world.translation + x
+    angle_x = cam.data.angle_x
+    x = (0.5 / tan(angle_x / 2)) * cam_vec.normalized()
+    obj.matrix_world.translation = cam.matrix_world.translation + x
 
-def drawMesh(face_sets, context) :
+def drawMesh(face_sets) :
     cam = context.scene.camera
     cam_vec = cam.matrix_world.to_3x3() @ Vector((0, 0, -1))
     R = cam_vec.to_track_quat('-Z', 'Y').to_matrix().to_4x4()
@@ -98,8 +108,6 @@ def drawMesh(face_sets, context) :
     x = (0.5 / tan(angle_x / 2)) * cam_vec.normalized()
     obj.matrix_world.translation = cam.matrix_world.translation + x
 
-    new_collection = bpy.data.collections.new('coll')
-    bpy.context.scene.collection.children.link(new_collection)
     new_collection.objects.link(obj)
 
 def drawPoly(merged) :
@@ -131,57 +139,86 @@ def drawPoly(merged) :
 
     new_collection.objects.link(obj)
 
-def get_flattened_faces(context, obj) -> List[List[Vector]]:
-    dg = context.evaluated_depsgraph_get()
-    bm = bmesh.new()
+    return obj
 
-    add_evaled_mesh(bm, dg, obj, True)
+def get_face_sets(obj) -> List[List[Vector]]:
+    dg = context.evaluated_depsgraph_get()
+    bmesh_ = bmesh.new()
+
+    add_evaled_mesh(bmesh_, dg, obj, True)
 
     faces = []
-    for face in bm.faces:
+    for face in bmesh_.faces:
         face_points = [obj.matrix_world.inverted() @ vert.co for vert in face.verts]
         face_points = [point.to_2d() for point in face_points]
         faces.append(face_points)
-    bm.free()
+    bmesh_.free()
 
     return faces
-    
-def execute(context: bpy.types.Context): 
-    valid_target_types = ["MESH","SURFACE","CURVE","META","FONT"]
-    targets = [o for o in context.selected_objects if o.type in valid_target_types]
+
+
+def duplicate(obj, data=True, actions=True, collection=None):
+    obj_copy = obj.copy()
+    if data:
+        obj_copy.data = obj_copy.data.copy()
+    if actions and obj_copy.animation_data:
+        obj_copy.animation_data.action = obj_copy.animation_data.action.copy()
+    collection.objects.link(obj_copy)
+    return obj_copy
+
+def renderImage(file):
+    path = os.path.join(os.getcwd(), (file % count))
+    scene = bpy.data.scenes[0]
+    render = scene.render
+    render.filepath = path
+    render.image_settings.file_format = "PNG"
+    render.image_settings.compression = 15
+    print("Rendering image:", file)
+    print("Render Engine:", render.engine)
+    bpy.ops.render.render(write_still=True)
+
+def run(): 
+    file = 'realistic%d.png'
+    renderImage(file)
+
+    types = ["MESH","SURFACE"]
+    targets = [o for o in context.selected_objects if o.type in types]
 
     if not isinstance(targets, list):
         targets = [targets]
 
     if not targets:
-        print("No valid targets selected")
+        print("Select mesh or surface")
         return
 
-    bpy.ops.object.duplicate()
-    print(bpy.context.active_object)
+    obj = targets[0]
+    obj.select_set(False)
+    obj_copy = duplicate(obj=obj, data=True, actions=True, collection=new_collection)
+    obj_copy.select_set(True)
 
-    tocam(context.scene, context.selected_objects)
+    project_mesh_on_camera(obj_copy)
 
-    for obj in targets:
-        face_sets = [get_flattened_faces(context, obj)]
-        poly_sets = [faces_to_polygons(face_set) for face_set in face_sets]
+    face_sets = [get_face_sets(obj_copy)]
+    poly_sets = [faces_to_polygons(face_set) for face_set in face_sets]
 
-        with ThreadPoolExecutor() as executor:
-            buffer = 0.00001
-            merged_sets = executor.map(poly_union, poly_sets, repeat(buffer))
+    with ThreadPoolExecutor() as executor:
+        buffer = 0.00001
+        merged_sets = executor.map(poly_union, poly_sets, repeat(buffer))
 
-        merged = list(chain.from_iterable(merged_sets))
+    merged = list(chain.from_iterable(merged_sets))
 
-        drawPoly(merged)
+    objs = bpy.data.objects
+    objs.remove(obj_copy, do_unlink=True)
+
+    obj_outline = drawPoly(merged)
 
 context = bpy.context
 scene = context.scene
 
-new_collection = bpy.data.collections.new('coll')
+count = 0
+
+new_collection = bpy.data.collections.new('temp_Collection')
 bpy.context.scene.collection.children.link(new_collection)
 
-new_collection2 = bpy.data.collections.new('coll2')
-bpy.context.scene.collection.children.link(new_collection2)
-
-execute(context)
+run()
 print("Finished")
