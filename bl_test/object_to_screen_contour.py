@@ -1,10 +1,8 @@
 import sys
 
-sys.path.append(
-    "C:\\Users\\Narinder\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
-
-sys.path.append(
-    "C:\\Users\\Narinder\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
+sys.path.append("D:\\instance-segmentation\\")
+sys.path.append("C:\\Users\\Narinder\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
+sys.path.append("C:\\Users\\Narinder\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
 
 import bpy
 import os
@@ -21,6 +19,9 @@ from shapely.ops import unary_union
 from shapely.geometry import Point, Polygon, MultiPolygon
 
 from bpy_extras.object_utils import world_to_camera_view as w2cv
+
+import datavars as datavars
+import generateRGBD as generateRGBD
 
 def poly_union(polygons: List[Polygon], buffer: float) -> List[Polygon]:
     polygons = [poly.buffer(buffer) for poly in polygons]
@@ -202,18 +203,41 @@ def drawContour(obj, file):
         render_scale = scene.render.resolution_percentage / 100
         render_size = (int(scene.render.resolution_x * render_scale),int(scene.render.resolution_y * render_scale),)
         center_coordinates = (int(co_2d.x * render_size[0]), int(render_size[1] - co_2d.y * render_size[1]))
+        
+        datavars.points_2d.append((center_coordinates))
+
         image = cv2.circle(image, center_coordinates, 1, (255, 0, 0), 2)
         image = cv2.putText(image, str(i), center_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
         Dict[x] = y
         i=i+1
 
-    file = 'renderContour%d.png'
+    file = 'renderContour-%d.png'
     path = os.path.join(os.getcwd(), (file % count))
-    cv2.imshow('Image', image)
+    #cv2.imshow('Image', image)
     cv2.imwrite(path, image)
 
+import json
+from json import JSONEncoder
+
+import numpy as np
+
+class NumpyArrayEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return JSONEncoder.default(self, obj)
+
+def writeJSON():
+    npData = {"points_2d": np.array(datavars.points_2d)}
+    encodedNPData = json.dumps(npData, cls=NumpyArrayEncoder)
+
+    file = 'contour-%d.json'
+    path = os.path.join(os.getcwd(), (file % count))
+    with open(path, "w") as outfile:
+        outfile.write(encodedNPData)
+
 def run(): 
-    file = 'realistic%d.png'
+    file = 'realistic-%d.png'
     renderImage(file)
 
     types = ["MESH","SURFACE"]
@@ -252,10 +276,16 @@ def run():
 
     obj.select_set(True)
 
+    writeJSON()
+
 context = bpy.context
 scene = context.scene
 
 count = 3
 
 run()
+
+print("generating depth")
+
+generateRGBD.run()
 print("Finished")
