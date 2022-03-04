@@ -1,13 +1,11 @@
-import sys
-
-sys.path.append("D:\\instance-segmentation\\")
-sys.path.append("C:\\Users\\Narinder\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
-sys.path.append("C:\\Users\\Narinder\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
-
+from cProfile import run
 import bpy
 import os
 import cv2
 import bmesh
+import datavars as datavars
+import jsonWriter as jsonwriter
+
 from typing import List, Union, Tuple
 
 from math import tan, radians
@@ -19,9 +17,6 @@ from shapely.ops import unary_union
 from shapely.geometry import Point, Polygon, MultiPolygon
 
 from bpy_extras.object_utils import world_to_camera_view as w2cv
-
-import datavars as datavars
-import generateRGBD as generateRGBD
 
 def poly_union(polygons: List[Polygon], buffer: float) -> List[Polygon]:
     polygons = [poly.buffer(buffer) for poly in polygons]
@@ -174,7 +169,7 @@ def duplicate(obj, data=True, actions=True, collection=None):
     bpy.context.collection.objects.link(obj_copy)
     return obj_copy
 
-def renderImage(file):
+def renderImage(file, count):
     path = os.path.join(os.getcwd(), (file % count))
     scene = bpy.data.scenes[0]
     render = scene.render
@@ -185,7 +180,7 @@ def renderImage(file):
     print("Render Engine:", render.engine)
     bpy.ops.render.render(write_still=True)
 
-def drawContour(obj, file):
+def drawContour(obj, file, count):
     path = os.path.join(os.getcwd(), (file % count))
     image = cv2.imread(path)
 
@@ -216,29 +211,9 @@ def drawContour(obj, file):
     #cv2.imshow('Image', image)
     cv2.imwrite(path, image)
 
-import json
-from json import JSONEncoder
-
-import numpy as np
-
-class NumpyArrayEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return JSONEncoder.default(self, obj)
-
-def writeJSON():
-    npData = {"points_2d": np.array(datavars.points_2d)}
-    encodedNPData = json.dumps(npData, cls=NumpyArrayEncoder)
-
-    file = 'contour-%d.json'
-    path = os.path.join(os.getcwd(), (file % count))
-    with open(path, "w") as outfile:
-        outfile.write(encodedNPData)
-
-def run(): 
+def runapp(count): 
     file = 'realistic-%d.png'
-    renderImage(file)
+    renderImage(file, count)
 
     types = ["MESH","SURFACE"]
     targets = [o for o in context.selected_objects if o.type in types]
@@ -271,21 +246,22 @@ def run():
 
     obj_outline = drawPoly(merged)
 
-    drawContour(obj_outline, file)
+    drawContour(obj_outline, file, count)
     objs.remove(obj_outline, do_unlink=True)
 
     obj.select_set(True)
 
-    writeJSON()
+    jsonwriter.writeJSON(count)
 
 context = bpy.context
 scene = context.scene
 
-count = 3
+count = 1
+runapp(count)
 
-run()
+import GenerateRGBD as GenerateRGBD
 
 print("generating depth")
-
-generateRGBD.run()
+GenerateRGBD.setup()
+GenerateRGBD.build()
 print("Finished")
