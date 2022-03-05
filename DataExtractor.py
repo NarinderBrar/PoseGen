@@ -1,15 +1,11 @@
 import sys
 
-#sys.path.append("C:\\Users\\Narinder\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
-sys.path.append("C:\\Users\\Admin\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
-
-#sys.path.append("C:\\Users\\Narinder\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
-sys.path.append("C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python39\\Lib\\site-packages\\")
-
 import bpy
+import mathutils
 from mathutils import Matrix
 
-import datavars as datavars
+import DataVars as DataVars
+import JSONWriter as jsonwriter
 
 def get_camera_as_object(camera_name='Camera'):
     return bpy.data.objects[camera_name]
@@ -18,7 +14,7 @@ def get_camera_transformation(camera_name='Camera'):
     camera = get_camera_as_object(camera_name)
     return camera.matrix_world
 
-def animation():
+def getTR():
     translation = mathutils.Vector()
     rotation = mathutils.Matrix.Rotation(0, 3, 'X')
 
@@ -30,22 +26,19 @@ def animation():
     translation = mathutils.Vector(translation)
     rotation = rotation.to_quaternion()
 
-    return translation, rotation, 0
+    return translation, rotation
     
-def save_data(translation=None, rotation=None):
-    datavars.groundTruth.append("%.4f" % translation.x)
-    datavars.groundTruth.append("%.4f" % translation.y)
-    datavars.groundTruth.append("%.4f" % translation.z)
+def save_ground_truth(translation=None, rotation=None):
+    DataVars.groundTruth.append("%.4f" % translation.x)
+    DataVars.groundTruth.append("%.4f" % translation.y)
+    DataVars.groundTruth.append("%.4f" % translation.z)
     
-    datavars.groundTruth.append("%.4f" % rotation.x)
-    datavars.groundTruth.append("%.4f" % rotation.y)
-    datavars.groundTruth.append("%.4f" % rotation.z)
-    datavars.groundTruth.append("%.4f" % rotation.w) 
+    DataVars.groundTruth.append("%.4f" % rotation.x)
+    DataVars.groundTruth.append("%.4f" % rotation.y)
+    DataVars.groundTruth.append("%.4f" % rotation.z)
+    DataVars.groundTruth.append("%.4f" % rotation.w) 
 
-    # ground_truth.write("%.4f" % translation.x + ' ' + "%.4f" % translation.y + ' ' + "%.4f" % translation.z + ' ' + "%.4f" % rotation.x + ' ' + "%.4f" % rotation.y + ' ' + "%.4f" % rotation.z + ' ' + "%.4f" % rotation.w + '\n')
-    # ground_truth.close()
-
-def get_calibration_matrix_K_from_blender(camd):
+def save_calibration_matrix_K(camd):
     f_in_mm = camd.lens
     scene = bpy.context.scene
 
@@ -81,18 +74,23 @@ def get_calibration_matrix_K_from_blender(camd):
         (0 ,  alpha_v, v_0),
         (0 ,    0,      1)))
 
-    datavars.groundTruth.append(alpha_u) 
-    datavars.groundTruth.append(skew) 
-    datavars.groundTruth.append(u_0) 
-    datavars.groundTruth.append(0)             
-    datavars.groundTruth.append(alpha_v)    
-    datavars.groundTruth.append(v_0)    
-    datavars.groundTruth.append(0)     
-    datavars.groundTruth.append(0) 
-    datavars.groundTruth.append(1) 
+    DataVars.cameraMatrix.append(alpha_u) 
+    DataVars.cameraMatrix.append(skew) 
+    DataVars.cameraMatrix.append(u_0) 
+    DataVars.cameraMatrix.append(0)             
+    DataVars.cameraMatrix.append(alpha_v)    
+    DataVars.cameraMatrix.append(v_0)    
+    DataVars.cameraMatrix.append(0)     
+    DataVars.cameraMatrix.append(0) 
+    DataVars.cameraMatrix.append(1) 
 
     return K
 
-def runapp():
-    depth_map, translation, rotation, timestamp = animation(render=True)
-    save_data(depth_map, translation, rotation, timestamp)
+def save(count):
+    translation, rotation = getTR()
+
+    save_ground_truth(translation, rotation)
+    save_calibration_matrix_K(bpy.data.objects['Camera'].data)
+
+    jsonwriter.writeJSON(count)
+

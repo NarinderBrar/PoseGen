@@ -1,19 +1,11 @@
-import sys
-
-#sys.path.append("C:\\Users\\Narinder\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
-sys.path.append("C:\\Users\\Admin\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
-
-#sys.path.append("C:\\Users\\Narinder\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
-sys.path.append("C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python39\\Lib\\site-packages\\")
-
 import bpy
 import numpy as np
-import mathutils
 from mathutils import Matrix
 import os
-import sys
-from skimage import io
+import DataVars
+
 import skimage
+from skimage import io
 
 ImageWidth = 1280
 ImageHeight = 720
@@ -31,24 +23,8 @@ CameraFOV = 50
 MaxDepth = 1500 #cmeters ?
 DepthScale = 100
 
-BlenderFile = ""
-BasePath = './exported-data/'
-RGBPath = '/rgb/'
-DepthPath = '/depth/'
-EXRDepthPath = '/EXRdepth/'
-
-GroundTruth = 'groundtruth.txt'
-
 RGBFileNameFormat = 'Image_'
 EXT = '.png'
-
-def set_base_path(base_path):
-    global BasePath
-    BasePath = base_path
-    if not os.path.exists(base_path):
-        os.makedirs(base_path + RGBPath)
-        os.makedirs(base_path + DepthPath)
-        os.makedirs(base_path + EXRDepthPath)
 
 def set_camera_fov(fov):
     global CameraFOV
@@ -146,7 +122,7 @@ def build_nodes():
 
     outputNodeZbuffer = tree.nodes.new('CompositorNodeOutputFile')
     outputNodeZbuffer.location = 750,185
-    outputNodeZbuffer.base_path = BasePath + EXRDepthPath
+    outputNodeZbuffer.base_path = DataVars.BasePath + DataVars.EXRDepthPath
     outputNodeZbuffer.file_slots[0].path = RGBFileNameFormat
     outputNodeZbuffer.file_slots[0].use_node_format = False
     outputNodeZbuffer.file_slots[0].format.file_format = "OPEN_EXR"
@@ -190,12 +166,11 @@ def get_depth_map():
     return depthMap
 
 def save_data(depth_map):
-
-    ground_truth = open(BasePath + GroundTruth, 'w')
     depthName = str(0) + '.png'
     depthMap = depth_map
 
-    io.imsave(BasePath + DepthPath + depthName, skimage.img_as_uint(depthMap))
+    print(DataVars.BasePath)
+    io.imsave(DataVars.BasePath + DataVars.DepthPath + depthName, skimage.img_as_uint(depthMap))
 
 def animation(render=False):
     bpy.ops.render.render(animation=False)
@@ -204,9 +179,6 @@ def animation(render=False):
     return depthMap
 
 def setup():
-    directory = "D://instance-segmentation//exported-data//"
-
-    set_base_path(directory)
     set_camera_fov(CameraFOV)
     set_scale(DepthScale)
 
@@ -221,8 +193,7 @@ def setup():
 def build():
     print('Building depth maps...')
 
-    depth_map, translation, rotation, timestamp = animation(render=True)
-    save_data(depth_map, translation, rotation, timestamp)
+    depth_map = animation(render=True)
+    save_data(depth_map)
 
-    print(get_calibration_matrix_K_from_blender(bpy.data.objects['Camera'].data))
     print('Depth images saved')

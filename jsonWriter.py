@@ -5,7 +5,7 @@ from json import JSONEncoder
 
 import numpy as np
 
-import datavars as datavars
+import DataVars as DataVars
 
 class NumpyArrayEncoder(JSONEncoder):
     def default(self, obj):
@@ -14,11 +14,12 @@ class NumpyArrayEncoder(JSONEncoder):
         return JSONEncoder.default(self, obj)
 
 def writeJSON(count):
-    npData = {"points_2d": np.array(datavars.points_2d)}
+    npData = {"points_2d": np.array(DataVars.points_2d), "ground_truth": np.array(DataVars.groundTruth), "camera_matrix": np.array(DataVars.cameraMatrix)}
+
     encodedNPData = json.dumps(npData, cls=NumpyArrayEncoder)
 
     print("writing file ..")
     file = 'contour-%d.json'
-    path = os.path.join(os.getcwd(), (file % count))
+    path = os.path.join(os.getcwd()+ '//exported-data//', (file % count))
     with open(path, "w") as outfile:
         outfile.write(encodedNPData)

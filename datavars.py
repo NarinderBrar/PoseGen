@@ -1,3 +1,8 @@
 points_2d = []
 groundTruth = []
-calibrationMatrix = []
+cameraMatrix = []
+
+BasePath = './exported-data/'
+RGBPath = '/rgb/'
+DepthPath = '/depth/'
+EXRDepthPath = '/EXRdepth/'

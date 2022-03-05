@@ -1,13 +1,11 @@
-from cProfile import run
 import bpy
 import os
 import cv2
 import bmesh
-import datavars as datavars
-import jsonWriter as jsonwriter
+
+import DataVars as DataVars
 
 from typing import List, Union, Tuple
-
 from math import tan, radians
 from mathutils import Vector, Matrix
 from concurrent.futures import ThreadPoolExecutor
@@ -19,6 +17,7 @@ from shapely.geometry import Point, Polygon, MultiPolygon
 from bpy_extras.object_utils import world_to_camera_view as w2cv
 
 def poly_union(polygons: List[Polygon], buffer: float) -> List[Polygon]:
+    print("Applying union operation on poly")
     polygons = [poly.buffer(buffer) for poly in polygons]
     merged = unary_union(polygons)
     if isinstance(merged, MultiPolygon):
@@ -30,6 +29,7 @@ def poly_union(polygons: List[Polygon], buffer: float) -> List[Polygon]:
     return polygons
 
 def faces_to_polygons(face_set: List[List[Vector]]):
+    print("Converting faces to polygons ...")
     polygons = []
 
     for face in face_set:
@@ -53,6 +53,7 @@ def add_evaled_mesh(bm, dg: bpy.types.Depsgraph, obj: bpy.types.Object, to_world
     return None
 
 def project_mesh_on_camera(obj):
+    print("Projecting mesh on the camera ...")
     cam = scene.camera
     cam_vec = cam.matrix_world.to_3x3() @ Vector((0, 0, -1))
 
@@ -77,6 +78,7 @@ def project_mesh_on_camera(obj):
     obj.matrix_world.translation = cam.matrix_world.translation + x
 
 def drawMesh(face_sets) :
+    print("Drawing mesh ..")
     cam = context.scene.camera
     cam_vec = cam.matrix_world.to_3x3() @ Vector((0, 0, -1))
     R = cam_vec.to_track_quat('-Z', 'Y').to_matrix().to_4x4()
@@ -145,6 +147,7 @@ def drawPoly(merged) :
     return obj
 
 def get_face_sets(obj) -> List[List[Vector]]:
+    print("Getting face sets ...")
     dg = context.evaluated_depsgraph_get()
     bmesh_ = bmesh.new()
 
@@ -169,19 +172,8 @@ def duplicate(obj, data=True, actions=True, collection=None):
     bpy.context.collection.objects.link(obj_copy)
     return obj_copy
 
-def renderImage(file, count):
-    path = os.path.join(os.getcwd(), (file % count))
-    scene = bpy.data.scenes[0]
-    render = scene.render
-    render.filepath = path
-    render.image_settings.file_format = "PNG"
-    render.image_settings.compression = 15
-    print("Rendering image:", file)
-    print("Render Engine:", render.engine)
-    bpy.ops.render.render(write_still=True)
-
 def drawContour(obj, file, count):
-    path = os.path.join(os.getcwd(), (file % count))
+    path = os.path.join(os.getcwd() + '//exported-data//', (file % count))
     image = cv2.imread(path)
 
     cam = context.scene.camera
@@ -199,7 +191,7 @@ def drawContour(obj, file, count):
         render_size = (int(scene.render.resolution_x * render_scale),int(scene.render.resolution_y * render_scale),)
         center_coordinates = (int(co_2d.x * render_size[0]), int(render_size[1] - co_2d.y * render_size[1]))
         
-        datavars.points_2d.append((center_coordinates))
+        DataVars.points_2d.append((center_coordinates))
 
         image = cv2.circle(image, center_coordinates, 1, (255, 0, 0), 2)
         image = cv2.putText(image, str(i), center_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
@@ -207,14 +199,14 @@ def drawContour(obj, file, count):
         i=i+1
 
     file = 'renderContour-%d.png'
-    path = os.path.join(os.getcwd(), (file % count))
+    path = os.path.join(os.getcwd() + '//exported-data//', (file % count))
     #cv2.imshow('Image', image)
     cv2.imwrite(path, image)
 
-def runapp(count): 
-    file = 'realistic-%d.png'
-    renderImage(file, count)
+def extract(count): 
+    print("Start extracting contour ...")
 
+    file = 'realistic-%d.png'
     types = ["MESH","SURFACE"]
     targets = [o for o in context.selected_objects if o.type in types]
 
@@ -223,7 +215,7 @@ def runapp(count):
 
     if not targets:
         print("Select mesh or surface")
-        return
+        quit()
 
     obj = targets[0]
     obj.select_set(False)
@@ -251,17 +243,5 @@ def runapp(count):
 
     obj.select_set(True)
 
-    jsonwriter.writeJSON(count)
-
 context = bpy.context
 scene = context.scene
-
-count = 1
-runapp(count)
-
-import GenerateRGBD as GenerateRGBD
-
-print("generating depth")
-GenerateRGBD.setup()
-GenerateRGBD.build()
-print("Finished")
