@@ -215,7 +215,7 @@ def extract(count):
 
     if not targets:
         print("Select mesh or surface")
-        quit()
+        return
 
     obj = targets[0]
     obj.select_set(False)
@@ -242,6 +242,8 @@ def extract(count):
     objs.remove(obj_outline, do_unlink=True)
 
     obj.select_set(True)
+
+    return obj
 
 context = bpy.context
 scene = context.scene

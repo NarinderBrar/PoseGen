@@ -14,7 +14,7 @@ class NumpyArrayEncoder(JSONEncoder):
         return JSONEncoder.default(self, obj)
 
 def writeJSON(count):
-    npData = {"points_2d": np.array(DataVars.points_2d), "ground_truth": np.array(DataVars.groundTruth), "camera_matrix": np.array(DataVars.cameraMatrix)}
+    npData = {"points_2d": np.array(DataVars.points_2d), "ground_truth": np.array(DataVars.groundTruth), "camera_matrix": np.array(DataVars.cameraMatrix), "object_matrix": np.array(DataVars.objPoseMatrix)}
 
     encodedNPData = json.dumps(npData, cls=NumpyArrayEncoder)
 

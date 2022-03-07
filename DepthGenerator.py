@@ -7,8 +7,8 @@ import DataVars
 import skimage
 from skimage import io
 
-ImageWidth = 1280
-ImageHeight = 720
+ImageWidth = 1920
+ImageHeight = 1080
 
 ox = ImageWidth/2
 oy = ImageHeight/2
@@ -59,7 +59,7 @@ def set_camera_properties(camera_name="Camera", inv_camera=True):
     camera = bpy.data.cameras[camera_name]
     camera.type = 'PERSP'
     camera.lens_unit = 'FOV'
-    camera.angle = np.radians(CameraFOV)
+    #camera.angle = np.radians(CameraFOV)
     #camera.sensor_fit = 'AUTO'
     #camera.sensor_width = 32.0
     # clip start/end in unit defined by Scene Should be meters

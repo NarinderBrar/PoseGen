@@ -86,11 +86,28 @@ def save_calibration_matrix_K(camd):
 
     return K
 
-def save(count):
+def saveObjectPoseMatrix(obj):
+    DataVars.objPoseMatrix.append(obj.matrix_world[0][0])
+    DataVars.objPoseMatrix.append(obj.matrix_world[0][1])
+    DataVars.objPoseMatrix.append(obj.matrix_world[0][2])
+    DataVars.objPoseMatrix.append(obj.matrix_world[0][3])
+    
+    DataVars.objPoseMatrix.append(obj.matrix_world[1][0])
+    DataVars.objPoseMatrix.append(obj.matrix_world[1][1])
+    DataVars.objPoseMatrix.append(obj.matrix_world[1][2])
+    DataVars.objPoseMatrix.append(obj.matrix_world[1][3])
+
+    DataVars.objPoseMatrix.append(obj.matrix_world[2][0])
+    DataVars.objPoseMatrix.append(obj.matrix_world[2][1])
+    DataVars.objPoseMatrix.append(obj.matrix_world[2][2])
+    DataVars.objPoseMatrix.append(obj.matrix_world[2][3])   
+
+def save(count, obj):
     translation, rotation = getTR()
 
     save_ground_truth(translation, rotation)
     save_calibration_matrix_K(bpy.data.objects['Camera'].data)
 
-    jsonwriter.writeJSON(count)
+    saveObjectPoseMatrix(obj)
 
+    jsonwriter.writeJSON(count)
