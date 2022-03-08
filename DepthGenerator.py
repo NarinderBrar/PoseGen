@@ -23,7 +23,6 @@ CameraFOV = 50
 MaxDepth = 1500 #cmeters ?
 DepthScale = 100
 
-RGBFileNameFormat = 'Image_'
 EXT = '.png'
 
 def set_camera_fov(fov):
@@ -123,7 +122,8 @@ def build_nodes():
     outputNodeZbuffer = tree.nodes.new('CompositorNodeOutputFile')
     outputNodeZbuffer.location = 750,185
     outputNodeZbuffer.base_path = DataVars.BasePath + DataVars.EXRDepthPath
-    outputNodeZbuffer.file_slots[0].path = RGBFileNameFormat
+    RGBFileNameFormat = 'depth-'+ str(DataVars.count)+"-"
+    outputNodeZbuffer.file_slots[0].path = RGBFileNameFormat 
     outputNodeZbuffer.file_slots[0].use_node_format = False
     outputNodeZbuffer.file_slots[0].format.file_format = "OPEN_EXR"
     outputNodeZbuffer.file_slots[0].format.color_mode = 'RGB'
@@ -166,7 +166,7 @@ def get_depth_map():
     return depthMap
 
 def save_data(depth_map):
-    depthName = str(0) + '.png'
+    depthName = str(DataVars.count) + '.png'
     depthMap = depth_map
 
     print(DataVars.BasePath)

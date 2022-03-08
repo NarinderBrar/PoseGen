@@ -4,13 +4,14 @@ sys.path.append("C:\\Users\\Admin\\AppData\\Roaming\\Python\\Python39\\site-pack
 sys.path.append("C:\\Users\\Admin\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
 
 import os
+import DataVars
 import SetupPaths
 import RealisticRenderer 
 import ContourExtractor
 import DepthGenerator
 import DataExtractor
 
-count = 50
+DataVars.count = 9
 
 print("\n")
 print("--Setup Paths--")
@@ -18,11 +19,11 @@ SetupPaths.set_base_path(os.getcwd()+ '//exported-data//')
 
 print("\n")
 print("--Realistic Render--")
-RealisticRenderer.renderImage(count)
+RealisticRenderer.renderImage(DataVars.count)
 
 print("\n")
 print("--Contour Extraction--")
-obj = ContourExtractor.extract(count)
+obj = ContourExtractor.extract(DataVars.count)
 
 print("\n")
 print("--Depth Generation--")
@@ -31,6 +32,6 @@ DepthGenerator.build()
 
 print("\n")
 print("--Data Extraction--")
-DataExtractor.save(count, obj)
+DataExtractor.save(DataVars.count, obj)
 
 print("Finished")
