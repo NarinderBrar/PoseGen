@@ -3,7 +3,7 @@ sys.path.append("D:\\instance-segmentation\\")
 sys.path.append("C:\\Users\\Admin\\AppData\\Roaming\\Python\\Python39\\site-packages\\")
 sys.path.append("C:\\Users\\Admin\\AppData\\local\\programs\\python\\python39\\lib\\site-packages\\")
 
-import os
+import os 
 import DataVars
 import SetupPaths
 import RealisticRenderer 
@@ -11,7 +11,7 @@ import ContourExtractor
 import DepthGenerator
 import DataExtractor
 
-DataVars.count = 9
+DataVars.count = 40
 
 print("\n")
 print("--Setup Paths--")

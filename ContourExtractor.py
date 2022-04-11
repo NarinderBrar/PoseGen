@@ -2,7 +2,7 @@ import bpy
 import os
 import cv2
 import bmesh
-
+import numpy as np
 import DataVars as DataVars
 
 from typing import List, Union, Tuple
@@ -173,6 +173,7 @@ def duplicate(obj, data=True, actions=True, collection=None):
     return obj_copy
 
 def drawContour(obj, file, count):
+    print("Drawing Contour")
     path = os.path.join(os.getcwd() + '//exported-data//', (file % count))
     image = cv2.imread(path)
 
@@ -180,6 +181,7 @@ def drawContour(obj, file, count):
 
     i =0
     Dict = {}
+    pts = []
     for v in obj.data.vertices:
         x = g = float("{:.2f}".format(v.co.x))
         y = g = float("{:.2f}".format(v.co.y))
@@ -192,16 +194,25 @@ def drawContour(obj, file, count):
         center_coordinates = (int(co_2d.x * render_size[0]), int(render_size[1] - co_2d.y * render_size[1]))
         
         DataVars.points_2d.append((center_coordinates))
+        pts.append([center_coordinates[0], center_coordinates[1]])
 
         image = cv2.circle(image, center_coordinates, 1, (255, 0, 0), 2)
         image = cv2.putText(image, str(i), center_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
         Dict[x] = y
         i=i+1
 
-    file = 'renderContour-%d.png'
-    path = os.path.join(os.getcwd() + '//exported-data//', (file % count))
-    #cv2.imshow('Image', image)
-    cv2.imwrite(path, image)
+    pathCont = os.path.join(os.getcwd() + '//exported-data//', ('renderContour-%d.png' % count))
+    cv2.imwrite(pathCont, image)
+
+    print(pts)
+    pts = np.array(pts,np.int32)
+    #pts = pts.reshape((-1, 1, 2))
+    imagePoly = cv2.imread(path)
+    imagePoly = cv2.fillPoly(imagePoly, [pts], (255, 0, 0))
+
+    pathPoly = os.path.join(os.getcwd() + '//exported-data//', ('renderSegmentaion-%d.png' % count))
+    cv2.imwrite(pathPoly, imagePoly)
+    print(path)
 
 def extract(count): 
     print("Start extracting contour ...")
