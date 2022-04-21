@@ -26,8 +26,8 @@ PoseGen is tool for generating Synthesis Photorealistic Dataset Generator For 6D
 ![Product][product-screenshot-5]
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[product-screenshot]: images/image_1.jpg
-[product-screenshot-2]: images/image_2.jpg
-[product-screenshot-3]: images/image_3.jpg
-[product-screenshot-4]: images/image_4.jpg
-[product-screenshot-5]: images/image_5.jpg
+[product-screenshot]: Images/image_1.jpg
+[product-screenshot-2]: Images/image_2.jpg
+[product-screenshot-3]: Images/image_3.jpg
+[product-screenshot-4]: Images/image_4.jpg
+[product-screenshot-5]: Images/image_5.jpg
